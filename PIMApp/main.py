@@ -31,6 +31,11 @@ class ProjectRequest(BaseModel):
     progress: int = Field(ge=0, le=100)
 
 
+class ProjectUpdate(BaseModel):
+    project_number: str = Field(min_length=14, max_length=17)
+    progress: int = Field(ge=0, le=100)
+
+
 @app.get("/", status_code=status.HTTP_200_OK)
 async def read_all(db: db_dependency):
     return db.query(PIM).all()
@@ -58,4 +63,29 @@ async def create_project(db: db_dependency, project_request: ProjectRequest):
     project_model = PIM(**project_request.model_dump())
 
     db.add(project_model)
+    db.commit()
+
+
+@app.put("/project/{project_number}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_progress(db: db_dependency, project_update: ProjectUpdate, project_number: str = Path(min_length=14, max_length=17)):
+    project_model = db.query(PIM).filter(
+        PIM.project_number == project_number).first()
+
+    if project_model is None:
+        raise HTTPException(status_code=404, detail='Project not found.')
+
+    project_model.progress = project_update.progress
+
+    db.add(project_model)
+    db.commit()
+
+
+@app.delete("/project/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_project(db: db_dependency, project_id: int = Path(gt=0)):
+    project_model = db.query(PIM).filter(PIM.id == project_id).first()
+
+    if project_model is None:
+        raise HTTPException(status_code=404, detail='Project not found.')
+
+    db.delete(project_model)
     db.commit()
